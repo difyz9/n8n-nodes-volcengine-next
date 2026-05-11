@@ -5,6 +5,8 @@
 
 n8n community node — **Volcengine Ark (火山方舟) Doubao Chat Model**，通过 OpenAI 兼容接口接入豆包系列大模型，支持 Thinking 模式与工具调用。
 
+方舟文档：<https://www.volcengine.com/docs/82379/1099475>
+
 ## 节点说明
 
 | 节点 | 类型 | 说明 |
