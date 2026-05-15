@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-volcengine-next",
-	"version": "1.0.6",
+	"version": "1.0.9",
 	"description": "n8n community node — Volcengine Ark (火山方舟) Doubao Chat Model (OpenAI-compatible API, thinking mode).",
 	"keywords": [
 		"n8n-community-node-package",
@@ -27,10 +27,12 @@
 		"build": "tsc && npm run copy-icons",
 		"prepack": "npm run build",
 		"copy-icons": "copyfiles \"nodes/**/*.svg\" \"credentials/*.svg\" dist/",
+		"postinstall": "node scripts/fix-langchain-core-nested-modules.cjs",
 		"dev": "tsc --watch"
 	},
 	"files": [
 		"dist",
+		"scripts/fix-langchain-core-nested-modules.cjs",
 		"README.md",
 		"LICENSE"
 	],
@@ -49,6 +51,11 @@
 		"@n8n/ai-utilities": "^0.14.1",
 		"undici": "6.25.0"
 	},
+	"bundledDependencies": [
+		"@langchain/core",
+		"@langchain/openai",
+		"undici"
+	],
 	"devDependencies": {
 		"@types/node": "^22.0.0",
 		"copyfiles": "^2.4.1",
