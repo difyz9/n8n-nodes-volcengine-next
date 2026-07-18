@@ -32,13 +32,17 @@
 	},
 	"main": "dist/nodes/VolcengineArkNextChatModel/VolcengineArkNextChatModel.node.js",
 	"scripts": {
-		"build": "rm -rf dist && tsc && npm run copy-icons",
-		"prepack": "npm run build && node scripts/materialize-hosted-nested-deps.cjs --copy-for-publish",
-		"copy-icons": "copyfiles \"nodes/**/*.svg\" \"credentials/*.svg\" dist/",
-		"postinstall": "node scripts/materialize-hosted-nested-deps.cjs",
-		"verify": "npm run build && eslint dist && node scripts/lint-package-json.mjs",
-		"lint": "eslint dist && node scripts/lint-package-json.mjs",
-		"dev": "tsc --watch"
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"clean": "rm -rf dist",
+		"lint:fix": "n8n-node lint --fix",
+		"pack:check": "npm pack --dry-run",
+		"release:check": "node scripts/release-check.mjs",
+		"release": "node scripts/release.mjs",
+		"prepublishOnly": "node scripts/prepublish-only.mjs"
+
 	},
 	"files": [
 		"dist",
