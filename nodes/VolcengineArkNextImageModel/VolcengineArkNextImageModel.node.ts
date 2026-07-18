@@ -9,23 +9,18 @@ import {
 	NodeConnectionTypes,
 	NodeOperationError,
 } from 'n8n-workflow';
+import { dataUrl, filterModelIds } from '../shared/media-utils';
 
 function normalizeBaseUrl(url: string): string {
 	return String(url).trim().replace(/\/+$/, '');
 }
 
-const STATIC_IMAGE_MODEL_IDS = [
-	'doubao-seedream-5-0-lite',
-	'doubao-seedream-4-5',
-	'doubao-seedream-4-0',
-] as const;
+const STATIC_IMAGE_MODEL_IDS = ['doubao-seedream-5-0-lite', 'doubao-seedream-4-5', 'doubao-seedream-4-0'] as const;
 
 async function getModels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const credentials = await this.getCredentials('volcengineArkNextApi');
 	const apiKey = credentials.apiKey as string;
-	const baseUrl = normalizeBaseUrl(
-		(credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3',
-	);
+	const baseUrl = normalizeBaseUrl((credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3');
 	try {
 		const response = (await this.helpers.httpRequest({
 			method: 'GET',
@@ -41,10 +36,8 @@ async function getModels(this: ILoadOptionsFunctions): Promise<INodePropertyOpti
 		if (!Array.isArray(data)) {
 			throw new Error('Unexpected /models response shape');
 		}
-		const ids = data
-			.map((m) => (typeof m?.id === 'string' ? m.id : ''))
-			.filter((id): id is string => Boolean(id));
-		const unique = [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+		const ids = data.map((m) => (typeof m?.id === 'string' ? m.id : '')).filter((id): id is string => Boolean(id));
+		const unique = filterModelIds([...new Set(ids)], 'image').sort((a, b) => a.localeCompare(b));
 		if (unique.length === 0) {
 			throw new Error('Empty /models data array');
 		}
@@ -72,9 +65,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 				AI: ['Image'],
 			},
 			resources: {
-				primaryDocumentation: [
-					{ url: 'https://www.volcengine.com/docs/82379/1541523' },
-				],
+				primaryDocumentation: [{ url: 'https://www.volcengine.com/docs/82379/1541523' }],
 			},
 		},
 		inputs: [NodeConnectionTypes.Main],
@@ -94,6 +85,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 					'Model ID from your Volcengine Ark <a href="https://www.volcengine.com/docs/82379/1541523" target="_blank" rel="noopener noreferrer">Seedream OpenAI-compatible API</a>. Options are loaded from GET /models when available; otherwise static fallbacks apply.',
 				typeOptions: {
 					loadOptionsMethod: 'getModels',
+					allowCustomValues: true,
 				},
 				default: 'doubao-seedream-5-0-lite',
 			},
@@ -106,8 +98,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 				typeOptions: {
 					rows: 4,
 				},
-				description:
-					'Text description of the image to generate. Supports Chinese and English.',
+				description: 'Text description of the image to generate. Supports Chinese and English.',
 			},
 			{
 				displayName: 'Reference Image',
@@ -130,8 +121,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 					{
 						name: 'Binary Data',
 						value: 'binary',
-						description:
-							'Read image from a binary property of the input item (e.g. from previous node output).',
+						description: 'Read image from a binary property of the input item (e.g. from previous node output).',
 					},
 				],
 			},
@@ -140,8 +130,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 				name: 'referenceImageUrl',
 				type: 'string',
 				default: '',
-				description:
-					'Publicly accessible URL of the reference image.',
+				description: 'Publicly accessible URL of the reference image.',
 				displayOptions: {
 					show: {
 						imageInputMode: ['url'],
@@ -153,8 +142,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 				name: 'referenceImageBinaryProperty',
 				type: 'string',
 				default: 'image',
-				description:
-					'Name of the binary property on the input item that contains the reference image data.',
+				description: 'Name of the binary property on the input item that contains the reference image data.',
 				displayOptions: {
 					show: {
 						imageInputMode: ['binary'],
@@ -173,8 +161,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 						name: 'sizePreset',
 						type: 'options',
 						default: '3K',
-						description:
-							'Image size preset. Choose Custom to specify exact pixel dimensions.',
+						description: 'Image size preset. Choose Custom to specify exact pixel dimensions.',
 						options: [
 							{ name: '2K (~2048x2048)', value: '2K' },
 							{ name: '3K (~3072x3072)', value: '3K' },
@@ -201,8 +188,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 						name: 'outputFormat',
 						type: 'options',
 						default: 'jpeg',
-						description:
-							'Output image format. Png is only supported by Seedream 5.0-lite; 4.5/4.0 always output jpeg.',
+						description: 'Output image format. Png is only supported by Seedream 5.0-lite; 4.5/4.0 always output jpeg.',
 						options: [
 							{ name: 'JPEG', value: 'jpeg' },
 							{ name: 'PNG', value: 'png' },
@@ -213,8 +199,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 						name: 'watermark',
 						type: 'boolean',
 						default: true,
-						description:
-							'Whether to add an "AI generated" watermark to the output image.',
+						description: 'Whether to add an "AI generated" watermark to the output image.',
 					},
 					{
 						displayName: 'Sequential Image Generation',
@@ -237,16 +222,14 @@ export class VolcengineArkNextImageModel implements INodeType {
 							minValue: 1,
 							maxValue: 4,
 						},
-						description:
-							'Number of images to generate (text-to-image only, no reference image).',
+						description: 'Number of images to generate (text-to-image only, no reference image).',
 					},
 					{
 						displayName: 'Output Property Name',
 						name: 'outputPropertyName',
 						type: 'string',
 						default: 'image',
-						description:
-							'Name of the binary property to set on the output item.',
+						description: 'Name of the binary property to set on the output item.',
 					},
 				],
 			},
@@ -262,9 +245,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const credentials = await this.getCredentials('volcengineArkNextApi');
 		const apiKey = credentials.apiKey as string;
-		const baseUrl = normalizeBaseUrl(
-			(credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3',
-		);
+		const baseUrl = normalizeBaseUrl((credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3');
 
 		const items = this.getInputData();
 		const results: INodeExecutionData[] = [];
@@ -273,11 +254,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 			try {
 				const model = this.getNodeParameter('model', itemIndex) as string;
 				const prompt = this.getNodeParameter('prompt', itemIndex) as string;
-				const imageInputMode = this.getNodeParameter(
-					'imageInputMode',
-					itemIndex,
-					'noImage',
-				) as string;
+				const imageInputMode = this.getNodeParameter('imageInputMode', itemIndex, 'noImage') as string;
 
 				const options = this.getNodeParameter('options', itemIndex, {}) as {
 					sizePreset?: string;
@@ -326,25 +303,16 @@ export class VolcengineArkNextImageModel implements INodeType {
 
 				// Reference image
 				if (imageInputMode === 'url') {
-					const refUrl = this.getNodeParameter(
-						'referenceImageUrl',
-						itemIndex,
-						'',
-					) as string;
+					const refUrl = this.getNodeParameter('referenceImageUrl', itemIndex, '') as string;
 					if (refUrl) {
 						body.image = refUrl;
 					}
 				} else if (imageInputMode === 'binary') {
-					const binaryProp = this.getNodeParameter(
-						'referenceImageBinaryProperty',
-						itemIndex,
-						'image',
-					) as string;
+					const binaryProp = this.getNodeParameter('referenceImageBinaryProperty', itemIndex, 'image') as string;
+					const binaryData = this.helpers.assertBinaryData(itemIndex, binaryProp);
 					const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryProp);
 					if (buffer) {
-						const base64 = buffer.toString('base64');
-						const mimeType = outputFormat === 'png' ? 'image/png' : 'image/jpeg';
-						body.image = `data:${mimeType};base64,${base64}`;
+						body.image = dataUrl(buffer, binaryData.mimeType, 'image/jpeg');
 					}
 				}
 
@@ -362,11 +330,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 
 				const imageData = response?.data;
 				if (!Array.isArray(imageData) || imageData.length === 0) {
-					throw new NodeOperationError(
-						this.getNode(),
-						'No images returned from API',
-						{ itemIndex },
-					);
+					throw new NodeOperationError(this.getNode(), 'No images returned from API', { itemIndex });
 				}
 
 				// Process each returned image
@@ -378,7 +342,7 @@ export class VolcengineArkNextImageModel implements INodeType {
 						const raw = await this.helpers.httpRequest({
 							method: 'GET',
 							url: entry.url,
-							encoding: "arraybuffer",
+							encoding: 'arraybuffer',
 							json: false,
 						});
 
@@ -425,7 +389,9 @@ export class VolcengineArkNextImageModel implements INodeType {
 				}
 			} catch (error) {
 				if (error instanceof NodeOperationError) throw error;
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex });
+				throw new NodeOperationError(this.getNode(), error as Error, {
+					itemIndex,
+				});
 			}
 		}
 

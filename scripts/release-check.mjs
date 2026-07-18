@@ -31,7 +31,7 @@ function run(command, args, extraEnv = {}) {
 try {
 	await run('npm', ['run', 'lint']);
 	await run('npm', ['run', 'build']);
-	await run('npm', ['publish', '.', '--dry-run', '--tag', 'latest'], { RELEASE_MODE: 'true' });
+	await run('npm', ['pack', '--dry-run'], { RELEASE_MODE: 'true' });
 } catch (error) {
 	console.error(error instanceof Error ? error.message : String(error));
 	process.exit(1);

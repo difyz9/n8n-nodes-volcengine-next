@@ -3,87 +3,153 @@
 [![npm version](https://img.shields.io/npm/v/@difyz/n8n-nodes-volcengine)](https://www.npmjs.com/package/@difyz/n8n-nodes-volcengine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-n8n community node — **Volcengine Ark (火山方舟)**，支持豆包 Chat、Seedream 文生图、Seedance 视频生成、Files API 文件管理。
+火山方舟（Volcengine Ark）的 n8n 社区节点，提供豆包 Chat、Seedream 图片生成、Seedance 视频生成和 Files API 文件管理。
 
-方舟文档：<https://www.volcengine.com/docs/82379/1099475>
+## 环境要求
 
-## 节点说明
-
-| 节点 | 类型 | 说明 |
-|------|------|------|
-| Volcengine Ark Chat Model (Next) | AI Language Model | 接入 n8n AI Agent / AI Chain 使用（豆包 Chat） |
-| Volcengine Ark Image Model (Next) | Regular Node | Seedream 文生图，支持参考图、尺寸、水印等 |
-| Volcengine Ark Video Model (Next) | Regular Node | Seedance 文/图/多模态生视频，支持异步轮询 |
-| Volcengine Ark File (Next) | Regular Node | Files API 文件上传、列表、获取、删除 |
+- n8n `>= 1.82.0`
+- Node.js `>= 22.16`
+- 火山方舟 API Key，以及相应模型或推理接入点的访问权限
 
 ## 安装
 
-### 通过 n8n 市场搜索
-在 n8n 设置 → Community Nodes 中搜索：
+在 n8n 的 **Settings → Community Nodes** 中安装：
 
-```
+```text
 @difyz/n8n-nodes-volcengine
 ```
 
-### 通过 npm 安装（自托管）
+自托管环境也可以执行：
+
 ```bash
 npm install @difyz/n8n-nodes-volcengine
 ```
 
 ## 凭据配置
 
-在 n8n 凭据页面新建 **Volcengine Ark API (Next)**，填入：
+新建 **Volcengine Ark API (Next)** 凭据：
 
-| 字段 | 说明 |
-|------|------|
-| API Key | 火山方舟控制台 → API Key 管理 中获取 |
-| Base URL | 默认 `https://ark.cn-beijing.volces.com/api/v3`，如使用其他区域可修改 |
+| 字段     | 说明                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| API Key  | 在火山方舟控制台的 API Key 管理页面获取                               |
+| Base URL | 默认 `https://ark.cn-beijing.volces.com/api/v3`；代理或其他区域可修改 |
 
-> 获取 API Key：[控制台 API Key 管理](https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey)
+凭据测试会请求 `GET /models`。Base URL 不要包含末尾 `/`。
 
-## 支持的模型
+## 节点概览
 
-节点会自动从 `/models` 端点动态加载可用模型；若接口不可达，以下静态列表作为兜底：
+| 节点                              | 类型              | 用途                                      |
+| --------------------------------- | ----------------- | ----------------------------------------- |
+| Volcengine Ark Chat Model (Next)  | AI Language Model | 连接 n8n AI Agent 或 AI Chain             |
+| Volcengine Ark Image Model (Next) | Regular Node      | Seedream 文生图、参考图生图和组图         |
+| Volcengine Ark Video Model (Next) | Regular Node      | Seedance 文生视频、关键帧和多模态参考视频 |
+| Volcengine Ark File (Next)        | Regular Node      | 上传、列出、读取、下载和删除文件          |
 
-| 模型 ID | 说明 |
-|---------|------|
-| `doubao-seed-2-0-pro-260215` | Doubao Seed 2.0 Pro（默认） |
-| `doubao-seed-2-0-lite-260215` | Doubao Seed 2.0 Lite |
-| `doubao-seed-1-6-251015` | Doubao Seed 1.6 标准版 |
-| `doubao-seed-1-6-thinking-250715` | Doubao Seed 1.6 Thinking（支持深度推理） |
-| `doubao-seed-1-6-flash-250828` | Doubao Seed 1.6 极速版 |
-| `doubao-seed-1-6-lite-251015` | Doubao Seed 1.6 轻量版 |
-| `doubao-pro-32k` | Doubao Pro 32K |
-| `doubao-lite-32k` | Doubao Lite 32K |
+模型选项从 `/models` 动态加载，并按节点类型过滤已知模型名称。`ep-*` 等无法判断能力的自定义 Endpoint 会保留；也可以直接填写自定义模型或 Endpoint ID。接口不可达时使用内置列表。
 
-## Options 选项
+## Chat Model
 
-| 选项 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| Thinking Mode | Disabled / Enabled | Disabled | 启用后模型输出 `reasoning_content`（推理过程）；需使用 thinking 类模型 |
-| Stream | boolean | true | 是否流式输出；AI Agent 场景保持开启 |
-| Parallel Tool Calls | boolean | false | 是否允许并行工具调用；关闭可控制 Agent 迭代消耗 |
-| Sampling Temperature | number 0–2 | 0.7 | 采样温度 |
-| Top P | number 0–1 | 1 | 核采样阈值 |
-| Frequency Penalty | number -2~2 | 0 | 频率惩罚（抑制重复） |
-| Presence Penalty | number -2~2 | 0 | 存在惩罚（鼓励新话题） |
-| Maximum Number of Tokens | number | -1 | 最大输出 token 数；-1 使用模型默认值 |
-| Response Format | Text / JSON Object | Text | JSON 格式时请在 Prompt 中包含 "json" 关键词 |
-| Timeout (ms) | number | 360000 | 请求超时时间（毫秒） |
-| Max Retries | number | 2 | 最大重试次数 |
-| Additional Model Arguments | JSON | — | 传递给 Ark API 的额外参数（浅合并到 modelKwargs） |
+将节点的 **Model** 输出连接到 AI Agent 或 AI Chain。主要选项：
 
-## 关于 Thinking 模式
+| 选项                       |      默认值 | 说明                                             |
+| -------------------------- | ----------: | ------------------------------------------------ |
+| Thinking Mode              |    Disabled | 为支持的模型发送 `thinking: { type: "enabled" }` |
+| Stream                     |      `true` | AI Agent 场景建议保持开启                        |
+| Parallel Tool Calls        |     `false` | 是否允许模型在单轮并行调用工具                   |
+| Temperature                |       `0.7` | 采样温度，范围 0–2                               |
+| Top P                      |         `1` | 核采样阈值，范围 0–1                             |
+| Maximum Number of Tokens   |        `-1` | `-1` 表示不发送限制，使用服务端默认值            |
+| Response Format            |        Text | JSON Object 模式通常要求 Prompt 包含 `json`      |
+| Timeout                    | `360000` ms | 单次请求超时                                     |
+| Max Retries                |         `2` | LangChain 请求重试次数                           |
+| Additional Model Arguments |          空 | 浅合并到 Ark 请求的额外模型参数                  |
 
-Thinking 模式适用于需要复杂推理的任务（数学、代码分析、多步骤规划等）。
+Thinking 模式下，多轮工具调用会尝试把上一轮 `reasoning_content` 注入后续请求。Thinking 关闭时，节点会将只有 `reasoning_content` 的流式增量映射为普通 assistant text，以便 n8n AI Agent 聚合输出。
 
-- 启用 Thinking 模式时，temperature / top_p 等采样参数对推理阶段无效。
-- 推荐使用 `doubao-seed-1-6-thinking` 或 Seed 2.0 系列模型。
-- 当 Thinking 模式**禁用**时，节点会自动将 `reasoning_content` 流式增量镜像到普通 assistant text，确保 n8n AI Agent 能正常聚合输出。
-- 多轮工具调用场景下，节点会自动将上一轮的 `reasoning_content` 注入到后续请求，符合火山方舟 API 要求。
+## Image Model
+
+输入每个 n8n item，节点生成一个或多个输出 item。成功下载时，图片写入 binary；JSON 中同时保留临时 URL、索引和 `revised_prompt`。下载失败时仍返回 URL，并设置 `downloadFailed: true`。
+
+### 输入方式
+
+- **No Image**：文生图。
+- **Image URL**：公开可访问的参考图 URL。
+- **Binary Data**：读取输入 item 的 binary 属性，并使用该属性的真实 MIME 类型生成 Data URL。
+
+### 常用选项
+
+- Size：`2K`、`3K`、`4K` 或自定义 `宽x高`。
+- Output Format：JPEG；PNG 仅适用于服务端支持的模型版本。
+- Watermark：是否添加水印。
+- Sequential Image Generation：`auto` 允许模型根据提示生成组图，`disabled` 关闭组图。
+- Number of Images：仅文生图时发送；具体上限仍受所选模型约束。
+- Output Property Name：默认 `image`。
+
+不同 Seedream 版本支持的尺寸、格式、组图和参数并不完全相同。遇到 400 参数错误时，请先核对所选模型的官方文档。
+
+## Video Model
+
+节点调用 `POST /contents/generations/tasks` 创建异步任务，随后轮询任务状态。成功后下载 `content.video_url` 到 binary 属性，同时保留 task ID 和 URL。
+
+| 模式                        | 必需输入                                                  |
+| --------------------------- | --------------------------------------------------------- |
+| Text to Video               | Prompt                                                    |
+| First Frame to Video        | Prompt + 一张首帧图片                                     |
+| First + Last Frame to Video | Prompt + 首帧图片 + 尾帧图片                              |
+| Multi-Modal Reference       | Prompt 或参考媒体；仅音频无效，音频必须搭配参考图片或视频 |
+
+图片、视频和音频均支持 URL 或输入 item 的 binary 属性。多模态模式最多读取 9 张图片、3 个视频和 3 个音频；超出的输入不会发送。
+
+主要输出选项包括宽高比、分辨率、时长、水印、生成音轨、轮询间隔和总超时。默认每 5 秒轮询，最多等待 10 分钟。超时错误中会保留 task ID，可使用官方任务查询接口继续查询；节点当前不提供独立的“恢复已有任务”操作。
+
+## File
+
+| Operation        | 输入                             | 输出                                             |
+| ---------------- | -------------------------------- | ------------------------------------------------ |
+| Upload           | binary 属性、可选文件名、purpose | 文件元数据和 file ID                             |
+| List             | 可选 purpose                     | 每个文件一个输出 item；空列表返回 `{ data: [] }` |
+| Get Info         | file ID                          | 文件元数据                                       |
+| Download Content | file ID、输出 binary 属性名      | 文件 metadata 和 binary 内容                     |
+| Delete           | file ID                          | 删除结果                                         |
+
+Upload 默认读取 binary 属性 `data`，Download Content 默认写入 `file`。文件有效期由火山方舟服务端策略决定，节点不声明或发送自定义有效期。
+
+## 常见问题
+
+### 下拉列表中没有我的 Endpoint
+
+确认凭据测试可访问 `/models`，也可以在 Model 字段直接输入 Endpoint ID。请确保 Endpoint 的能力与节点类型一致。
+
+### 图片或视频任务返回参数错误
+
+Seedream/Seedance 不同版本的尺寸、时长、分辨率、音频和参考媒体限制不同。节点提供通用参数集合，但不能让服务端不支持的参数变为可用。
+
+### 生成成功但下载失败
+
+节点仍会返回临时资源 URL 和 `downloadFailed: true`。检查 n8n 所在网络能否访问该 URL，并在 URL 过期前下载。
+
+### 二进制属性不存在
+
+确认上游节点确实输出 binary 数据，并让属性名与本节点配置一致。n8n 中 JSON 字段和 binary 属性是两套数据。
+
+## 开发验证
+
+```bash
+npm run lint
+npm test
+npm run pack:check
+npm run release:check
+```
 
 ## 官方文档
 
-- [火山方舟 OpenAI 兼容接口](https://www.volcengine.com/docs/82379/1330626)
-- [模型列表](https://www.volcengine.com/docs/82379/1330310)
+- [火山方舟文档](https://www.volcengine.com/docs/82379/1099475)
+- [Chat OpenAI 兼容接口](https://www.volcengine.com/docs/82379/1330626)
+- [图片生成 API](https://www.volcengine.com/docs/82379/1541523)
+- [视频生成 API](https://www.volcengine.com/docs/82379/1520757)
+- [Files API](https://www.volcengine.com/docs/82379/1885708)
 - [API Key 管理](https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey)
+
+## License
+
+MIT

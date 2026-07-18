@@ -1,6 +1,15 @@
 const pathBootstrap = require('path');
 
-require((pathBootstrap as typeof import('path')).join(__dirname, '..', '..', '..', 'scripts', 'materialize-hosted-nested-deps.cjs'));
+require(
+	(pathBootstrap as typeof import('path')).join(
+		__dirname,
+		'..',
+		'..',
+		'..',
+		'scripts',
+		'materialize-hosted-nested-deps.cjs',
+	),
+);
 
 import type { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
 import type { BaseMessage } from '@langchain/core/messages';
@@ -8,13 +17,10 @@ import { AIMessage, AIMessageChunk } from '@langchain/core/messages';
 import type { ChatResult } from '@langchain/core/outputs';
 import { ChatGenerationChunk } from '@langchain/core/outputs';
 import { N8nLlmTracing } from '@n8n/ai-utilities';
-import {
-	ChatOpenAICompletions,
-	type ChatOpenAICompletionsCallOptions,
-	type ClientOptions,
-} from '@langchain/openai';
+import { ChatOpenAICompletions, type ChatOpenAICompletionsCallOptions, type ClientOptions } from '@langchain/openai';
 import type OpenAI from 'openai';
 import { ProxyAgent } from 'undici';
+import { filterModelIds } from '../shared/media-utils';
 import {
 	NodeConnectionTypes,
 	NodeOperationError,
@@ -163,8 +169,7 @@ function injectVolcengineAssistantReasoningIntoApiMessages(
 				rawToolCalls.map((t) => t.id).filter((id): id is string => typeof id === 'string' && id.length > 0),
 			);
 			chosenLcIdx = lcAi.findIndex(
-				(m, i) =>
-					!usedLcAi.has(i) && (m.tool_calls?.some((tc) => tc.id && ids.has(tc.id)) ?? false),
+				(m, i) => !usedLcAi.has(i) && (m.tool_calls?.some((tc) => tc.id && ids.has(tc.id)) ?? false),
 			);
 		}
 
@@ -185,8 +190,7 @@ function injectVolcengineAssistantReasoningIntoApiMessages(
 		if (typeof row.reasoning_content === 'string' && row.reasoning_content.length > 0) continue;
 		const sig = stableToolSignatureFromCalls(row.tool_calls);
 		if (!sig) continue;
-		const cached =
-			reasoningFallbackByToolSignature?.get(sig) ?? moduleReasoningCacheGet(sig);
+		const cached = reasoningFallbackByToolSignature?.get(sig) ?? moduleReasoningCacheGet(sig);
 		if (typeof cached !== 'string' || cached.length === 0) continue;
 		apiMessages[paramIdx] = { ...row, reasoning_content: cached };
 	}
@@ -234,13 +238,9 @@ class ChatVolcengineForN8n extends ChatOpenAICompletions {
 		requestOptions?: OpenAI.RequestOptions,
 	): Promise<OpenAI.Chat.Completions.ChatCompletion>;
 	override async completionWithRetry(
-		request:
-			| OpenAI.Chat.ChatCompletionCreateParamsStreaming
-			| OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
+		request: OpenAI.Chat.ChatCompletionCreateParamsStreaming | OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
 		requestOptions?: OpenAI.RequestOptions,
-	): Promise<
-		AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk> | OpenAI.Chat.Completions.ChatCompletion
-	> {
+	): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk> | OpenAI.Chat.Completions.ChatCompletion> {
 		const stackTop = this.volcengineLcMessagesStack[this.volcengineLcMessagesStack.length - 1];
 		if (stackTop && Array.isArray(request.messages)) {
 			injectVolcengineAssistantReasoningIntoApiMessages(
@@ -250,10 +250,7 @@ class ChatVolcengineForN8n extends ChatOpenAICompletions {
 			);
 		}
 		if (request.stream === true) {
-			return super.completionWithRetry(
-				request as OpenAI.Chat.ChatCompletionCreateParamsStreaming,
-				requestOptions,
-			);
+			return super.completionWithRetry(request as OpenAI.Chat.ChatCompletionCreateParamsStreaming, requestOptions);
 		}
 		const result = await super.completionWithRetry(
 			request as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
@@ -389,10 +386,7 @@ function parseAdditionalModelKwargs(raw: unknown, node: INode): Record<string, u
 			if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
 				return { ...(parsed as Record<string, unknown>) };
 			}
-			throw new NodeOperationError(
-				node,
-				'Additional model arguments must be a JSON object (e.g. {"key":"value"}).',
-			);
+			throw new NodeOperationError(node, 'Additional model arguments must be a JSON object (e.g. {"key":"value"}).');
 		} catch (e) {
 			if (e instanceof NodeOperationError) throw e;
 			throw new NodeOperationError(node, 'Invalid JSON in additional model arguments.');
@@ -407,9 +401,7 @@ function parseAdditionalModelKwargs(raw: unknown, node: INode): Record<string, u
 async function getModels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const credentials = await this.getCredentials('volcengineArkNextApi');
 	const apiKey = credentials.apiKey as string;
-	const baseUrl = normalizeBaseUrl(
-		(credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3',
-	);
+	const baseUrl = normalizeBaseUrl((credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3');
 	try {
 		const response = (await this.helpers.httpRequest({
 			method: 'GET',
@@ -425,10 +417,8 @@ async function getModels(this: ILoadOptionsFunctions): Promise<INodePropertyOpti
 		if (!Array.isArray(data)) {
 			throw new Error('Unexpected /models response shape');
 		}
-		const ids = data
-			.map((m) => (typeof m?.id === 'string' ? m.id : ''))
-			.filter((id): id is string => Boolean(id));
-		const unique = [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+		const ids = data.map((m) => (typeof m?.id === 'string' ? m.id : '')).filter((id): id is string => Boolean(id));
+		const unique = filterModelIds([...new Set(ids)], 'chat').sort((a, b) => a.localeCompare(b));
 		if (unique.length === 0) {
 			throw new Error('Empty /models data array');
 		}
@@ -457,9 +447,7 @@ export class VolcengineArkNextChatModel implements INodeType {
 				'Language Models': ['Chat Models (Recommended)'],
 			},
 			resources: {
-				primaryDocumentation: [
-					{ url: 'https://www.volcengine.com/docs/82379/1330626' },
-				],
+				primaryDocumentation: [{ url: 'https://www.volcengine.com/docs/82379/1330626' }],
 			},
 		},
 		inputs: [],
@@ -526,6 +514,7 @@ export class VolcengineArkNextChatModel implements INodeType {
 					'Model ID from your Volcengine Ark <a href="https://www.volcengine.com/docs/82379/1330626" target="_blank" rel="noopener noreferrer">OpenAI-compatible API</a>. Options are loaded from GET /models when available; otherwise static fallbacks apply. Use doubao-seed-1-6-thinking or doubao-seed-2-0-* for thinking/reasoning tasks.',
 				typeOptions: {
 					loadOptionsMethod: 'getModels',
+					allowCustomValues: true,
 				},
 				default: 'doubao-seed-2-0-pro-260215',
 			},
@@ -561,8 +550,7 @@ export class VolcengineArkNextChatModel implements INodeType {
 						name: 'stream',
 						type: 'boolean',
 						default: true,
-						description:
-							'Whether to stream tokens from the model. Leave enabled for AI Agent streaming responses.',
+						description: 'Whether to stream tokens from the model. Leave enabled for AI Agent streaming responses.',
 					},
 					{
 						displayName: 'Parallel Tool Calls',
@@ -594,8 +582,7 @@ export class VolcengineArkNextChatModel implements INodeType {
 						default: 0,
 						type: 'number',
 						typeOptions: { maxValue: 2, minValue: -2, numberPrecision: 2 },
-						description:
-							'Penalizes tokens by frequency in the text so far (reduces verbatim repetition).',
+						description: 'Penalizes tokens by frequency in the text so far (reduces verbatim repetition).',
 					},
 					{
 						displayName: 'Presence Penalty',
@@ -611,8 +598,7 @@ export class VolcengineArkNextChatModel implements INodeType {
 						default: -1,
 						type: 'number',
 						typeOptions: { maxValue: 131072 },
-						description:
-							'Max completion tokens. Use -1 or leave default to omit the limit (provider default).',
+						description: 'Max completion tokens. Use -1 or leave default to omit the limit (provider default).',
 					},
 					{
 						displayName: 'Response Format',
@@ -659,9 +645,7 @@ export class VolcengineArkNextChatModel implements INodeType {
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		const credentials = await this.getCredentials('volcengineArkNextApi');
 		const apiKey = credentials.apiKey as string;
-		const baseUrl = normalizeBaseUrl(
-			(credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3',
-		);
+		const baseUrl = normalizeBaseUrl((credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3');
 
 		const modelName = this.getNodeParameter('model', itemIndex) as string;
 
@@ -732,12 +716,8 @@ export class VolcengineArkNextChatModel implements INodeType {
 			maxRetries,
 			...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
 			...(options.topP !== undefined ? { topP: options.topP } : {}),
-			...(options.frequencyPenalty !== undefined
-				? { frequencyPenalty: options.frequencyPenalty }
-				: {}),
-			...(options.presencePenalty !== undefined
-				? { presencePenalty: options.presencePenalty }
-				: {}),
+			...(options.frequencyPenalty !== undefined ? { frequencyPenalty: options.frequencyPenalty } : {}),
+			...(options.presencePenalty !== undefined ? { presencePenalty: options.presencePenalty } : {}),
 			...(maxTokens !== undefined ? { maxTokens } : {}),
 			modelKwargs,
 		} as ConstructorParameters<typeof ChatOpenAICompletions>[0]);

@@ -31,9 +31,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 				AI: ['File'],
 			},
 			resources: {
-				primaryDocumentation: [
-					{ url: 'https://www.volcengine.com/docs/82379/1885708' },
-				],
+				primaryDocumentation: [{ url: 'https://www.volcengine.com/docs/82379/1885708' }],
 			},
 		},
 		inputs: [NodeConnectionTypes.Main],
@@ -62,26 +60,22 @@ export class VolcengineArkNextFileModel implements INodeType {
 					{
 						name: 'List',
 						value: 'list',
-						description:
-							'List all uploaded files. Optionally filter by purpose.',
+						description: 'List all uploaded files. Optionally filter by purpose.',
 					},
 					{
 						name: 'Get Info',
 						value: 'get',
-						description:
-							'Retrieve file metadata by file_id.',
+						description: 'Retrieve file metadata by file_id.',
 					},
 					{
 						name: 'Download Content',
 						value: 'getContent',
-						description:
-							'Download the content of a file by file_id as binary data.',
+						description: 'Download the content of a file by file_id as binary data.',
 					},
 					{
 						name: 'Delete',
 						value: 'delete',
-						description:
-							'Delete a file by file_id. The file must not be in processing status.',
+						description: 'Delete a file by file_id. The file must not be in processing status.',
 					},
 				],
 			},
@@ -92,8 +86,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 				type: 'string',
 				default: 'data',
 				required: true,
-				description:
-					'Name of the binary property on the input item that contains the file data to upload.',
+				description: 'Name of the binary property on the input item that contains the file data to upload.',
 				displayOptions: {
 					show: {
 						operation: ['upload'],
@@ -118,25 +111,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 				name: 'purpose',
 				type: 'string',
 				default: 'user_data',
-				description:
-					'File purpose. Default is "user_data". Must match what the target model expects.',
-				displayOptions: {
-					show: {
-						operation: ['upload'],
-					},
-				},
-			},
-			{
-				displayName: 'File Expiration (days)',
-				name: 'expireDays',
-				type: 'number',
-				default: 7,
-				typeOptions: {
-					minValue: 1,
-					maxValue: 30,
-				},
-				description:
-					'Number of days before the file expires. Default 7, range 1-30.',
+				description: 'File purpose. Default is "user_data". Must match what the target model expects.',
 				displayOptions: {
 					show: {
 						operation: ['upload'],
@@ -149,8 +124,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 				name: 'listPurpose',
 				type: 'string',
 				default: '',
-				description:
-					'Optional purpose filter (e.g. "user_data"). Leave empty to list all files.',
+				description: 'Optional purpose filter (e.g. "user_data"). Leave empty to list all files.',
 				displayOptions: {
 					show: {
 						operation: ['list'],
@@ -164,8 +138,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 				type: 'string',
 				default: '',
 				required: true,
-				description:
-					'The file ID (e.g. file-20251018xxxx) returned by a previous upload or list operation.',
+				description: 'The file ID (e.g. file-20251018xxxx) returned by a previous upload or list operation.',
 				displayOptions: {
 					show: {
 						operation: ['get', 'getContent', 'delete'],
@@ -177,8 +150,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 				name: 'outputBinaryPropertyName',
 				type: 'string',
 				default: 'file',
-				description:
-					'Name of the binary property to set on the output item when downloading file content.',
+				description: 'Name of the binary property to set on the output item when downloading file content.',
 				displayOptions: {
 					show: {
 						operation: ['getContent'],
@@ -191,9 +163,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const credentials = await this.getCredentials('volcengineArkNextApi');
 		const apiKey = credentials.apiKey as string;
-		const baseUrl = normalizeBaseUrl(
-			(credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3',
-		);
+		const baseUrl = normalizeBaseUrl((credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3');
 
 		const items = this.getInputData();
 		const operation = this.getNodeParameter('operation', 0) as string;
@@ -202,20 +172,13 @@ export class VolcengineArkNextFileModel implements INodeType {
 		if (operation === 'upload') {
 			for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 				try {
-					const binaryPropertyName = this.getNodeParameter(
-						'binaryPropertyName',
-						itemIndex,
-						'data',
-					) as string;
+					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
 					const purpose = this.getNodeParameter('purpose', itemIndex, 'user_data') as string;
 					const customFileName = this.getNodeParameter('fileName', itemIndex, '') as string;
-					const expireDays = this.getNodeParameter('expireDays', itemIndex, 7) as number;
-
 					const binaryData = this.helpers.assertBinaryData(itemIndex, binaryPropertyName);
 					const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
 
-					const fileName =
-						customFileName || binaryData.fileName || `upload_${itemIndex}.bin`;
+					const fileName = customFileName || binaryData.fileName || `upload_${itemIndex}.bin`;
 
 					const form = new FormData();
 					form.append('purpose', purpose);
@@ -237,7 +200,9 @@ export class VolcengineArkNextFileModel implements INodeType {
 					});
 				} catch (error) {
 					if (error instanceof NodeOperationError) throw error;
-					throw new NodeOperationError(this.getNode(), error as Error, { itemIndex });
+					throw new NodeOperationError(this.getNode(), error as Error, {
+						itemIndex,
+					});
 				}
 			}
 		} else if (operation === 'list') {
@@ -274,7 +239,9 @@ export class VolcengineArkNextFileModel implements INodeType {
 				}
 			} catch (error) {
 				if (error instanceof NodeOperationError) throw error;
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: 0 });
+				throw new NodeOperationError(this.getNode(), error as Error, {
+					itemIndex: 0,
+				});
 			}
 		} else if (operation === 'get') {
 			const fileId = this.getNodeParameter('fileId', 0) as string;
@@ -295,15 +262,13 @@ export class VolcengineArkNextFileModel implements INodeType {
 				});
 			} catch (error) {
 				if (error instanceof NodeOperationError) throw error;
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: 0 });
+				throw new NodeOperationError(this.getNode(), error as Error, {
+					itemIndex: 0,
+				});
 			}
 		} else if (operation === 'getContent') {
 			const fileId = this.getNodeParameter('fileId', 0) as string;
-			const outputBinaryPropertyName = this.getNodeParameter(
-				'outputBinaryPropertyName',
-				0,
-				'file',
-			) as string;
+			const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', 0, 'file') as string;
 
 			try {
 				const raw = (await this.helpers.httpRequest({
@@ -321,11 +286,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 					buffer = raw;
 				} else if (typeof raw === 'string') {
 					buffer = Buffer.from(raw);
-				} else if (
-					raw &&
-					typeof raw === 'object' &&
-					Buffer.isBuffer((raw as Record<string, unknown>).data)
-				) {
+				} else if (raw && typeof raw === 'object' && Buffer.isBuffer((raw as Record<string, unknown>).data)) {
 					buffer = (raw as { data: Buffer }).data;
 				} else {
 					buffer = Buffer.from(String(raw));
@@ -350,11 +311,7 @@ export class VolcengineArkNextFileModel implements INodeType {
 					// metadata fetch is best-effort
 				}
 
-				const binaryData = await this.helpers.prepareBinaryData(
-					buffer,
-					fileName,
-					mimeType,
-				);
+				const binaryData = await this.helpers.prepareBinaryData(buffer, fileName, mimeType);
 
 				results.push({
 					json: {
@@ -367,7 +324,9 @@ export class VolcengineArkNextFileModel implements INodeType {
 				});
 			} catch (error) {
 				if (error instanceof NodeOperationError) throw error;
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: 0 });
+				throw new NodeOperationError(this.getNode(), error as Error, {
+					itemIndex: 0,
+				});
 			}
 		} else if (operation === 'delete') {
 			const fileId = this.getNodeParameter('fileId', 0) as string;
@@ -391,7 +350,9 @@ export class VolcengineArkNextFileModel implements INodeType {
 				});
 			} catch (error) {
 				if (error instanceof NodeOperationError) throw error;
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: 0 });
+				throw new NodeOperationError(this.getNode(), error as Error, {
+					itemIndex: 0,
+				});
 			}
 		}
 

@@ -9,6 +9,7 @@ import {
 	NodeConnectionTypes,
 	NodeOperationError,
 } from 'n8n-workflow';
+import { dataUrl, filterModelIds } from '../shared/media-utils';
 
 function normalizeBaseUrl(url: string): string {
 	return String(url).trim().replace(/\/+$/, '');
@@ -28,9 +29,7 @@ const STATIC_VIDEO_MODEL_IDS = [
 async function getModels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const credentials = await this.getCredentials('volcengineArkNextApi');
 	const apiKey = credentials.apiKey as string;
-	const baseUrl = normalizeBaseUrl(
-		(credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3',
-	);
+	const baseUrl = normalizeBaseUrl((credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3');
 	try {
 		const response = (await this.helpers.httpRequest({
 			method: 'GET',
@@ -46,10 +45,8 @@ async function getModels(this: ILoadOptionsFunctions): Promise<INodePropertyOpti
 		if (!Array.isArray(data)) {
 			throw new Error('Unexpected /models response shape');
 		}
-		const ids = data
-			.map((m) => (typeof m?.id === 'string' ? m.id : ''))
-			.filter((id): id is string => Boolean(id));
-		const unique = [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+		const ids = data.map((m) => (typeof m?.id === 'string' ? m.id : '')).filter((id): id is string => Boolean(id));
+		const unique = filterModelIds([...new Set(ids)], 'video').sort((a, b) => a.localeCompare(b));
 		if (unique.length === 0) {
 			throw new Error('Empty /models data array');
 		}
@@ -59,10 +56,7 @@ async function getModels(this: ILoadOptionsFunctions): Promise<INodePropertyOpti
 	}
 }
 
-async function buildMultiModalContent(
-	executionFn: IExecuteFunctions,
-	itemIndex: number,
-): Promise<unknown[]> {
+async function buildMultiModalContent(executionFn: IExecuteFunctions, itemIndex: number): Promise<unknown[]> {
 	const content: unknown[] = [];
 
 	const prompt = executionFn.getNodeParameter('prompt', itemIndex, '') as string;
@@ -70,11 +64,7 @@ async function buildMultiModalContent(
 		content.push({ type: 'text', text: prompt });
 	}
 
-	const refImageSource = executionFn.getNodeParameter(
-		'refImageSourceType',
-		itemIndex,
-		'none',
-	) as string;
+	const refImageSource = executionFn.getNodeParameter('refImageSourceType', itemIndex, 'none') as string;
 
 	if (refImageSource === 'url') {
 		const urlsStr = executionFn.getNodeParameter('refImageUrls', itemIndex, '') as string;
@@ -90,33 +80,27 @@ async function buildMultiModalContent(
 			});
 		}
 	} else if (refImageSource === 'binary') {
-		const propsStr = executionFn.getNodeParameter(
-			'refImageBinaryProperties',
-			itemIndex,
-			'',
-		) as string;
+		const propsStr = executionFn.getNodeParameter('refImageBinaryProperties', itemIndex, '') as string;
 		const props = propsStr
 			.split(',')
 			.map((p) => p.trim())
 			.filter(Boolean);
 		for (const prop of props.slice(0, 9)) {
+			const binaryData = executionFn.helpers.assertBinaryData(itemIndex, prop);
 			const buffer = await executionFn.helpers.getBinaryDataBuffer(itemIndex, prop);
 			if (buffer) {
-				const base64 = buffer.toString('base64');
 				content.push({
 					type: 'image_url',
-					image_url: { url: `data:image/jpeg;base64,${base64}` },
+					image_url: {
+						url: dataUrl(buffer, binaryData.mimeType, 'image/jpeg'),
+					},
 					role: 'reference_image',
 				});
 			}
 		}
 	}
 
-	const refVideoSource = executionFn.getNodeParameter(
-		'refVideoSourceType',
-		itemIndex,
-		'none',
-	) as string;
+	const refVideoSource = executionFn.getNodeParameter('refVideoSourceType', itemIndex, 'none') as string;
 
 	if (refVideoSource === 'url') {
 		const urlsStr = executionFn.getNodeParameter('refVideoUrls', itemIndex, '') as string;
@@ -131,23 +115,19 @@ async function buildMultiModalContent(
 			});
 		}
 	} else if (refVideoSource === 'binary') {
-		const propsStr = executionFn.getNodeParameter(
-			'refVideoBinaryProperties',
-			itemIndex,
-			'',
-		) as string;
+		const propsStr = executionFn.getNodeParameter('refVideoBinaryProperties', itemIndex, '') as string;
 		const props = propsStr
 			.split(',')
 			.map((p) => p.trim())
 			.filter(Boolean);
 		for (const prop of props.slice(0, 3)) {
+			const binaryData = executionFn.helpers.assertBinaryData(itemIndex, prop);
 			const buffer = await executionFn.helpers.getBinaryDataBuffer(itemIndex, prop);
 			if (buffer) {
-				const base64 = buffer.toString('base64');
 				content.push({
 					type: 'video_url',
 					video_url: {
-						url: `data:video/mp4;base64,${base64}`,
+						url: dataUrl(buffer, binaryData.mimeType, 'video/mp4'),
 						role: 'reference_video',
 					},
 				});
@@ -155,11 +135,7 @@ async function buildMultiModalContent(
 		}
 	}
 
-	const refAudioSource = executionFn.getNodeParameter(
-		'refAudioSourceType',
-		itemIndex,
-		'none',
-	) as string;
+	const refAudioSource = executionFn.getNodeParameter('refAudioSourceType', itemIndex, 'none') as string;
 
 	if (refAudioSource === 'url') {
 		const urlsStr = executionFn.getNodeParameter('refAudioUrls', itemIndex, '') as string;
@@ -174,23 +150,19 @@ async function buildMultiModalContent(
 			});
 		}
 	} else if (refAudioSource === 'binary') {
-		const propsStr = executionFn.getNodeParameter(
-			'refAudioBinaryProperties',
-			itemIndex,
-			'',
-		) as string;
+		const propsStr = executionFn.getNodeParameter('refAudioBinaryProperties', itemIndex, '') as string;
 		const props = propsStr
 			.split(',')
 			.map((p) => p.trim())
 			.filter(Boolean);
 		for (const prop of props.slice(0, 3)) {
+			const binaryData = executionFn.helpers.assertBinaryData(itemIndex, prop);
 			const buffer = await executionFn.helpers.getBinaryDataBuffer(itemIndex, prop);
 			if (buffer) {
-				const base64 = buffer.toString('base64');
 				content.push({
 					type: 'audio_url',
 					audio_url: {
-						url: `data:audio/mp3;base64,${base64}`,
+						url: dataUrl(buffer, binaryData.mimeType, 'audio/mpeg'),
 						role: 'reference_audio',
 					},
 				});
@@ -219,9 +191,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				AI: ['Video'],
 			},
 			resources: {
-				primaryDocumentation: [
-					{ url: 'https://www.volcengine.com/docs/82379/1520757' },
-				],
+				primaryDocumentation: [{ url: 'https://www.volcengine.com/docs/82379/1520757' }],
 			},
 		},
 		inputs: [NodeConnectionTypes.Main],
@@ -241,6 +211,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 					'Model ID from your Volcengine Ark <a href="https://www.volcengine.com/docs/82379/1520757" target="_blank" rel="noopener noreferrer">Seedance OpenAI-compatible API</a>. Options are loaded from GET /models when available; otherwise static fallbacks apply.',
 				typeOptions: {
 					loadOptionsMethod: 'getModels',
+					allowCustomValues: true,
 				},
 				default: 'doubao-seedance-2-0',
 			},
@@ -291,20 +262,14 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				displayName: 'Reference Image',
 				name: 'imageInputMode',
 				type: 'options',
-				default: 'noImage',
-				description:
-					'Provide a reference image for the first frame (or first+last frames).',
+				default: 'url',
+				description: 'Provide a reference image for the first frame (or first+last frames).',
 				displayOptions: {
 					show: {
 						videoMode: ['first-frame-to-video', 'first-last-frame-to-video'],
 					},
 				},
 				options: [
-					{
-						name: 'No Image',
-						value: 'noImage',
-						description: 'No reference image.',
-					},
 					{
 						name: 'Image URL',
 						value: 'url',
@@ -348,8 +313,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				name: 'lastFrameUrl',
 				type: 'string',
 				default: '',
-				description:
-					'Publicly accessible URL of the last frame image (for first+last-frame mode).',
+				description: 'Publicly accessible URL of the last frame image (for first+last-frame mode).',
 				displayOptions: {
 					show: {
 						videoMode: ['first-last-frame-to-video'],
@@ -362,8 +326,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				name: 'lastFrameBinaryProperty',
 				type: 'string',
 				default: '',
-				description:
-					'Name of the binary property containing the last frame image. Leave empty for single-frame mode.',
+				description: 'Name of the binary property containing the last frame image. Leave empty for single-frame mode.',
 				displayOptions: {
 					show: {
 						videoMode: ['first-last-frame-to-video'],
@@ -377,8 +340,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				name: 'refImageSourceType',
 				type: 'options',
 				default: 'none',
-				description:
-					'Add reference images (0-9) for multi-modal reference video generation.',
+				description: 'Add reference images (0-9) for multi-modal reference video generation.',
 				displayOptions: {
 					show: {
 						videoMode: ['multi-modal-reference'],
@@ -415,8 +377,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				name: 'refImageBinaryProperties',
 				type: 'string',
 				default: 'image',
-				description:
-					'Comma-separated binary property names from the input item. Up to 9 reference images.',
+				description: 'Comma-separated binary property names from the input item. Up to 9 reference images.',
 				displayOptions: {
 					show: {
 						videoMode: ['multi-modal-reference'],
@@ -429,8 +390,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				name: 'refVideoSourceType',
 				type: 'options',
 				default: 'none',
-				description:
-					'Add reference videos (0-3) for multi-modal reference video generation. Seedance 2.0 only.',
+				description: 'Add reference videos (0-3) for multi-modal reference video generation. Seedance 2.0 only.',
 				displayOptions: {
 					show: {
 						videoMode: ['multi-modal-reference'],
@@ -467,8 +427,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				name: 'refVideoBinaryProperties',
 				type: 'string',
 				default: '',
-				description:
-					'Comma-separated binary property names from the input item. Up to 3 reference videos.',
+				description: 'Comma-separated binary property names from the input item. Up to 3 reference videos.',
 				displayOptions: {
 					show: {
 						videoMode: ['multi-modal-reference'],
@@ -505,8 +464,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 					rows: 3,
 				},
 				default: '',
-				description:
-					'One URL per line. Up to 3 reference audio clips. Format: wav/mp3, 2-15s each, ≤15MB, total ≤15s.',
+				description: 'One URL per line. Up to 3 reference audio clips. Format: wav/mp3, 2-15s each, ≤15MB, total ≤15s.',
 				displayOptions: {
 					show: {
 						videoMode: ['multi-modal-reference'],
@@ -519,8 +477,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				name: 'refAudioBinaryProperties',
 				type: 'string',
 				default: '',
-				description:
-					'Comma-separated binary property names from the input item. Up to 3 reference audio clips.',
+				description: 'Comma-separated binary property names from the input item. Up to 3 reference audio clips.',
 				displayOptions: {
 					show: {
 						videoMode: ['multi-modal-reference'],
@@ -540,8 +497,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 						name: 'ratio',
 						type: 'options',
 						default: '16:9',
-						description:
-							'Aspect ratio of the output video. Adaptive auto-chooses based on input.',
+						description: 'Aspect ratio of the output video. Adaptive auto-chooses based on input.',
 						options: [
 							{ name: '16:9', value: '16:9' },
 							{ name: '4:3', value: '4:3' },
@@ -557,8 +513,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 						name: 'resolution',
 						type: 'options',
 						default: '720p',
-						description:
-							'Video resolution. 1080p may not be available on all models.',
+						description: 'Video resolution. 1080p may not be available on all models.',
 						options: [
 							{ name: '480p', value: '480p' },
 							{ name: '720p', value: '720p' },
@@ -574,16 +529,14 @@ export class VolcengineArkNextVideoModel implements INodeType {
 							minValue: 0,
 							maxValue: 15,
 						},
-						description:
-							'Video duration in seconds (max 15 for Seedance 2.0). 0 or empty uses the model default.',
+						description: 'Video duration in seconds (max 15 for Seedance 2.0). 0 or empty uses the model default.',
 					},
 					{
 						displayName: 'Add Watermark',
 						name: 'watermark',
 						type: 'boolean',
 						default: true,
-						description:
-							'Whether to add a watermark to the output video.',
+						description: 'Whether to add a watermark to the output video.',
 					},
 					{
 						displayName: 'Generate Audio Track',
@@ -601,8 +554,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 							minValue: 1000,
 						},
 						default: 5000,
-						description:
-							'Interval in milliseconds between status polling requests.',
+						description: 'Interval in milliseconds between status polling requests.',
 					},
 					{
 						displayName: 'Timeout (ms)',
@@ -612,16 +564,14 @@ export class VolcengineArkNextVideoModel implements INodeType {
 							minValue: 10000,
 						},
 						default: 600000,
-						description:
-							'Maximum time in milliseconds to wait for video generation to complete.',
+						description: 'Maximum time in milliseconds to wait for video generation to complete.',
 					},
 					{
 						displayName: 'Output Property Name',
 						name: 'outputPropertyName',
 						type: 'string',
 						default: 'video',
-						description:
-							'Name of the binary property to set on the output item.',
+						description: 'Name of the binary property to set on the output item.',
 					},
 				],
 			},
@@ -637,9 +587,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const credentials = await this.getCredentials('volcengineArkNextApi');
 		const apiKey = credentials.apiKey as string;
-		const baseUrl = normalizeBaseUrl(
-			(credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3',
-		);
+		const baseUrl = normalizeBaseUrl((credentials.baseUrl as string) || 'https://ark.cn-beijing.volces.com/api/v3');
 
 		const items = this.getInputData();
 		const results: INodeExecutionData[] = [];
@@ -675,28 +623,18 @@ export class VolcengineArkNextVideoModel implements INodeType {
 
 				if (videoMode === 'text-to-video') {
 					if (!prompt) {
-						throw new NodeOperationError(
-							this.getNode(),
-							'Prompt is required for text-to-video mode.',
-							{ itemIndex },
-						);
+						throw new NodeOperationError(this.getNode(), 'Prompt is required for text-to-video mode.', { itemIndex });
 					}
 					content.push({ type: 'text', text: prompt });
 				} else if (videoMode === 'first-frame-to-video') {
 					if (!prompt) {
-						throw new NodeOperationError(
-							this.getNode(),
-							'Prompt is required for first-frame-to-video mode.',
-							{ itemIndex },
-						);
+						throw new NodeOperationError(this.getNode(), 'Prompt is required for first-frame-to-video mode.', {
+							itemIndex,
+						});
 					}
 					content.push({ type: 'text', text: prompt });
 
-					const imageInputMode = this.getNodeParameter(
-						'imageInputMode',
-						itemIndex,
-						'noImage',
-					) as string;
+					const imageInputMode = this.getNodeParameter('imageInputMode', itemIndex, 'noImage') as string;
 
 					if (imageInputMode === 'url') {
 						const refUrl = this.getNodeParameter('referenceImageUrl', itemIndex, '') as string;
@@ -708,51 +646,44 @@ export class VolcengineArkNextVideoModel implements INodeType {
 							});
 						}
 					} else if (imageInputMode === 'binary') {
-						const binaryProp = this.getNodeParameter(
-							'referenceImageBinaryProperty',
-							itemIndex,
-							'image',
-						) as string;
+						const binaryProp = this.getNodeParameter('referenceImageBinaryProperty', itemIndex, 'image') as string;
+						const binaryData = this.helpers.assertBinaryData(itemIndex, binaryProp);
 						const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryProp);
 						if (buffer) {
-							const base64 = buffer.toString('base64');
 							content.push({
 								type: 'image_url',
-								image_url: { url: `data:image/jpeg;base64,${base64}` },
+								image_url: {
+									url: dataUrl(buffer, binaryData.mimeType, 'image/jpeg'),
+								},
 								role: 'first_frame',
 							});
 						}
 					}
+					if (!content.some((part) => (part as { role?: string }).role === 'first_frame')) {
+						throw new NodeOperationError(this.getNode(), 'A first-frame image is required for this mode.', {
+							itemIndex,
+						});
+					}
 				} else if (videoMode === 'first-last-frame-to-video') {
 					if (!prompt) {
-						throw new NodeOperationError(
-							this.getNode(),
-							'Prompt is required for first-last-frame-to-video mode.',
-							{ itemIndex },
-						);
+						throw new NodeOperationError(this.getNode(), 'Prompt is required for first-last-frame-to-video mode.', {
+							itemIndex,
+						});
 					}
 					content.push({ type: 'text', text: prompt });
 
-					const imageInputMode = this.getNodeParameter(
-						'imageInputMode',
-						itemIndex,
-						'noImage',
-					) as string;
+					const imageInputMode = this.getNodeParameter('imageInputMode', itemIndex, 'noImage') as string;
 
 					// First frame
 					let firstFrameUrl: string | undefined;
 					if (imageInputMode === 'url') {
 						firstFrameUrl = this.getNodeParameter('referenceImageUrl', itemIndex, '') as string;
 					} else if (imageInputMode === 'binary') {
-						const binaryProp = this.getNodeParameter(
-							'referenceImageBinaryProperty',
-							itemIndex,
-							'image',
-						) as string;
+						const binaryProp = this.getNodeParameter('referenceImageBinaryProperty', itemIndex, 'image') as string;
+						const binaryData = this.helpers.assertBinaryData(itemIndex, binaryProp);
 						const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryProp);
 						if (buffer) {
-							const base64 = buffer.toString('base64');
-							firstFrameUrl = `data:image/jpeg;base64,${base64}`;
+							firstFrameUrl = dataUrl(buffer, binaryData.mimeType, 'image/jpeg');
 						}
 					}
 					if (firstFrameUrl) {
@@ -768,16 +699,12 @@ export class VolcengineArkNextVideoModel implements INodeType {
 					if (imageInputMode === 'url') {
 						lastFrameUrl = this.getNodeParameter('lastFrameUrl', itemIndex, '') as string;
 					} else if (imageInputMode === 'binary') {
-						const lastProp = this.getNodeParameter(
-							'lastFrameBinaryProperty',
-							itemIndex,
-							'',
-						) as string;
+						const lastProp = this.getNodeParameter('lastFrameBinaryProperty', itemIndex, '') as string;
 						if (lastProp) {
+							const binaryData = this.helpers.assertBinaryData(itemIndex, lastProp);
 							const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, lastProp);
 							if (buffer) {
-								const base64 = buffer.toString('base64');
-								lastFrameUrl = `data:image/jpeg;base64,${base64}`;
+								lastFrameUrl = dataUrl(buffer, binaryData.mimeType, 'image/jpeg');
 							}
 						}
 					}
@@ -788,18 +715,35 @@ export class VolcengineArkNextVideoModel implements INodeType {
 							role: 'last_frame',
 						});
 					}
+					if (!firstFrameUrl || !lastFrameUrl) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'Both first-frame and last-frame images are required for this mode.',
+							{ itemIndex },
+						);
+					}
 				} else if (videoMode === 'multi-modal-reference') {
 					// Delegate content building to helper function
 					const refContent = await buildMultiModalContent(this, itemIndex);
 					content.push(...refContent);
+					const hasVisualReference = content.some((part) => {
+						const type = (part as { type?: string }).type;
+						return type === 'image_url' || type === 'video_url';
+					});
+					const hasAudioReference = content.some((part) => (part as { type?: string }).type === 'audio_url');
+					if (hasAudioReference && !hasVisualReference) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'Reference audio requires at least one reference image or video.',
+							{ itemIndex },
+						);
+					}
 				}
 
 				if (content.length === 0) {
-					throw new NodeOperationError(
-						this.getNode(),
-						'At least a prompt or reference media is required.',
-						{ itemIndex },
-					);
+					throw new NodeOperationError(this.getNode(), 'At least a prompt or reference media is required.', {
+						itemIndex,
+					});
 				}
 
 				// Build request body
@@ -872,9 +816,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 						break;
 					}
 					if (status === 'failed') {
-						const errorMsg =
-							(pollResponse?.error as string) ||
-							JSON.stringify(pollResponse?.error);
+						const errorMsg = (pollResponse?.error as string) || JSON.stringify(pollResponse?.error);
 						throw new NodeOperationError(
 							this.getNode(),
 							`Video generation failed: ${errorMsg || 'Unknown error'} (task: ${taskId})`,
@@ -882,11 +824,9 @@ export class VolcengineArkNextVideoModel implements INodeType {
 						);
 					}
 					if (status === 'cancelled') {
-						throw new NodeOperationError(
-							this.getNode(),
-							`Video generation was cancelled (task: ${taskId})`,
-							{ itemIndex },
-						);
+						throw new NodeOperationError(this.getNode(), `Video generation was cancelled (task: ${taskId})`, {
+							itemIndex,
+						});
 					}
 					// queued / running → continue polling
 				}
@@ -900,9 +840,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				}
 
 				// Step 3: Extract video URL from completed response
-				const contentResult = lastResponse?.content as
-					| Record<string, unknown>
-					| undefined;
+				const contentResult = lastResponse?.content as Record<string, unknown> | undefined;
 				const videoUrl = contentResult?.video_url as string | undefined;
 
 				if (!videoUrl) {
@@ -927,11 +865,7 @@ export class VolcengineArkNextVideoModel implements INodeType {
 						buffer = raw;
 					} else if (typeof raw === 'string') {
 						buffer = Buffer.from(raw);
-					} else if (
-						raw &&
-						typeof raw === 'object' &&
-						Buffer.isBuffer((raw as Record<string, unknown>).data)
-					) {
+					} else if (raw && typeof raw === 'object' && Buffer.isBuffer((raw as Record<string, unknown>).data)) {
 						buffer = (raw as { data: Buffer }).data;
 					} else {
 						buffer = Buffer.from(String(raw));
@@ -966,7 +900,9 @@ export class VolcengineArkNextVideoModel implements INodeType {
 				});
 			} catch (error) {
 				if (error instanceof NodeOperationError) throw error;
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex });
+				throw new NodeOperationError(this.getNode(), error as Error, {
+					itemIndex,
+				});
 			}
 		}
 

@@ -21,7 +21,13 @@
 		"files"
 	],
 	"license": "MIT",
-	"author": "Difyz",
+	"author": {
+		"name": "difyz9",
+		"email": "difyz.com@gmail.com"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"homepage": "https://github.com/difyz9/n8n-nodes-volcengine#readme",
 	"repository": {
 		"type": "git",
@@ -36,6 +42,7 @@
 		"build:watch": "tsc --watch",
 		"dev": "n8n-node dev",
 		"lint": "n8n-node lint",
+		"test": "npm run build && node --test tests/*.test.mjs",
 		"clean": "rm -rf dist",
 		"lint:fix": "n8n-node lint --fix",
 		"pack:check": "npm pack --dry-run",
