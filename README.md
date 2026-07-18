@@ -1,9 +1,9 @@
-# n8n-nodes-volcengine-next
+# @difyz/n8n-nodes-volcengine
 
-[![npm version](https://img.shields.io/npm/v/n8n-nodes-volcengine-next)](https://www.npmjs.com/package/n8n-nodes-volcengine-next)
+[![npm version](https://img.shields.io/npm/v/@difyz/n8n-nodes-volcengine)](https://www.npmjs.com/package/@difyz/n8n-nodes-volcengine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-n8n community node — **Volcengine Ark (火山方舟) Doubao Chat Model**，通过 OpenAI 兼容接口接入豆包系列大模型，支持 Thinking 模式与工具调用。
+n8n community node — **Volcengine Ark (火山方舟)**，支持豆包 Chat、Seedream 文生图、Seedance 视频生成、Files API 文件管理。
 
 方舟文档：<https://www.volcengine.com/docs/82379/1099475>
 
@@ -11,20 +11,23 @@ n8n community node — **Volcengine Ark (火山方舟) Doubao Chat Model**，通
 
 | 节点 | 类型 | 说明 |
 |------|------|------|
-| Volcengine Ark Chat Model (Next) | AI Language Model | 接入 n8n AI Agent / AI Chain 使用 |
+| Volcengine Ark Chat Model (Next) | AI Language Model | 接入 n8n AI Agent / AI Chain 使用（豆包 Chat） |
+| Volcengine Ark Image Model (Next) | Regular Node | Seedream 文生图，支持参考图、尺寸、水印等 |
+| Volcengine Ark Video Model (Next) | Regular Node | Seedance 文/图/多模态生视频，支持异步轮询 |
+| Volcengine Ark File (Next) | Regular Node | Files API 文件上传、列表、获取、删除 |
 
 ## 安装
 
-在 n8n 设置 → Community Nodes 中搜索并安装：
+### 通过 n8n 市场搜索
+在 n8n 设置 → Community Nodes 中搜索：
 
 ```
-n8n-nodes-volcengine-next
+@difyz/n8n-nodes-volcengine
 ```
 
-或通过 npm 手动安装（自托管）：
-
+### 通过 npm 安装（自托管）
 ```bash
-npm install n8n-nodes-volcengine-next
+npm install @difyz/n8n-nodes-volcengine
 ```
 
 ## 凭据配置

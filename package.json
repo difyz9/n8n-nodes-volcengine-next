@@ -1,5 +1,5 @@
 {
-	"name": "n8n-nodes-volcengine-next",
+	"name": "@difyz/n8n-nodes-volcengine",
 	"version": "1.0.16",
 	"description": "n8n community node — Volcengine Ark (火山方舟) Doubao Chat Model, Seedream Image Generation, Seedance Video Generation (OpenAI-compatible API, thinking mode).",
 	"keywords": [
@@ -21,14 +21,14 @@
 		"files"
 	],
 	"license": "MIT",
-	"author": "Matrees",
-	"homepage": "https://github.com/liuhauyao/n8n-nodes-volcengine-next#readme",
+	"author": "Difyz",
+	"homepage": "https://github.com/difyz9/n8n-nodes-volcengine#readme",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/liuhauyao/n8n-nodes-volcengine-next.git"
+		"url": "git+https://github.com/difyz9/n8n-nodes-volcengine.git"
 	},
 	"bugs": {
-		"url": "https://github.com/liuhauyao/n8n-nodes-volcengine-next/issues"
+		"url": "https://github.com/difyz9/n8n-nodes-volcengine/issues"
 	},
 	"main": "dist/nodes/VolcengineArkNextChatModel/VolcengineArkNextChatModel.node.js",
 	"scripts": {
