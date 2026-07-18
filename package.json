@@ -1,6 +1,6 @@
 {
 	"name": "@difyz/n8n-nodes-volcengine",
-	"version": "1.0.16",
+	"version": "1.0.17",
 	"description": "n8n community node — Volcengine Ark (火山方舟) Doubao Chat Model, Seedream Image Generation, Seedance Video Generation (OpenAI-compatible API, thinking mode).",
 	"keywords": [
 		"n8n-community-node-package",
@@ -42,7 +42,6 @@
 		"release:check": "node scripts/release-check.mjs",
 		"release": "node scripts/release.mjs",
 		"prepublishOnly": "node scripts/prepublish-only.mjs"
-
 	},
 	"files": [
 		"dist",
